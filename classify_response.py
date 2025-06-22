@@ -16,7 +16,7 @@ def rule_based_classify(user_response: str) -> str | None:
         return "예"
     
     # 아니오
-    elif any(kw in lower for kw in ["없어요", "아니요", "아니오", "없습니다", "아닌 것 같아요", "해당 없음", "해당 안 돼요"]):
+    elif any(kw in lower for kw in ["아니" , "없어요", "아니요", "아니오", "없습니다", "아닌 것 같아요", "해당 없음", "해당 안 돼요"]):
         return "아니요"
     
     # 모르겠음

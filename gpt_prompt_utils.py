@@ -1,7 +1,7 @@
 # GPT에 입력할 질병-증상 정리
 import json
 
-def load_disease_json(path="full_disease_symptom_data.json"):
+def load_disease_json(path="disease_symptom.json"):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 

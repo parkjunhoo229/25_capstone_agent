@@ -62,11 +62,18 @@ def build_followup_question_prompt_from_partial_info(
 
     disease_symptom_text = "\n".join(lines)
 
+    print("✅ 이미 물어본 증상 (confirmed + skipped):", already_asked)
+    print("✅ 확인된 증상 (confirmed + skipped):", confirmed_symptoms)
+    print("✅ 아니요, 모르겠음 응답 증상 (confirmed + skipped):", skipped_symptoms)
+
     return f"""
 너는 응급환자 증상을 기반으로 질병을 감별하고자 하는 AI 응급의료 에이전트다.
 
 [후보 병명의 남은 의심 증상 목록]
 {disease_symptom_text}
+
+[절대 물어보면 안되는 의심 증상 목록]
+{already_asked}
 
 위 정보를 참고하여, 병명 감별에 유용한 **한 가지 증상**을 골라 질문을 작성하라.
 
@@ -76,6 +83,7 @@ def build_followup_question_prompt_from_partial_info(
 - 두 번째 줄: 사용자에게 보여줄 질문 → 해당 증상에 대한 자연어 질문 문장 (한 문장), 반드시 아래 조건을 따를 것:
 
 [질문 생성 조건]
+- [절대 물어보면 안되는 의심 증상 목록]에 포함된 증상은 절대 질문하지 마세요. 반드시 제외하고 질문을 구성하세요.
 - 반드시 **한 가지 증상만** 묻는 **짧고 명확한 문장**으로 작성할 것
 - 반드시 다음 문장으로 끝낼 것: “추가적인 증상이 있다면 편하게 말씀해주세요.”
 - **복합 질문은 금지** (예시: "그리고", "또는" 등으로 두 가지 이상 묻지 말 것)
@@ -93,12 +101,17 @@ def build_followup_question_prompt_from_partial_info(
 - 추가 질문: 한쪽 얼굴이 비대칭인가요? 추가적인 증상이 있다면 편하게 말씀해주세요.
 """.strip()
 
-def has_remaining_symptoms(disease_candidates, confirmed_symptoms, disease_data):
+def has_remaining_symptoms(disease_candidates, confirmed_symptoms, disease_data, skipped_symptoms=None):
+    if skipped_symptoms is None:
+        skipped_symptoms = []
+
+    already_asked = set(confirmed_symptoms) | set(skipped_symptoms)
+
     for disease in disease_candidates:
         if disease not in disease_data:
             continue
         symptoms = disease_data[disease].get("symptoms", [])
-        remaining = [s for s in symptoms if s not in confirmed_symptoms]
+        remaining = [s for s in symptoms if s not in already_asked]
         if remaining:
             return True
     return False

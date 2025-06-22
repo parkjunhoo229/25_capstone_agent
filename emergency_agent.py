@@ -16,30 +16,33 @@ from first_aid_guide import emergency_instruction
 
 def run_diagnosis_session():
     load_dotenv()
-    api_key = os.getenv("OPENAI_API_KEY")
-    client = openai.OpenAI(api_key=api_key)
+    api_key = os.getenv("OPENAI_API_KEY")   # .env에서 불러온 OpenAI API 키 (OPENAI_API_KEY)
+    client = openai.OpenAI(api_key=api_key) # GPT 호출을 위한 OpenAI API 클라이언트
 
-    disease_data = load_disease_json()
-    disease_text = get_disease_prompt_string(disease_data)
+    disease_data = load_disease_json()  # 전체 질병-증상 매핑 데이터 (예: "골절": { "symptoms": [...], "emergency_level": "응급" })
+    disease_text = get_disease_prompt_string(disease_data) # GPT 프롬프트에 넣을 요약 텍스트 (모든 병명 + 응급도 + 증상 목록 정리 문자열)
 
-    chat_history = [
-        {"role": "system", "content": SYSTEM_MESSAGE},
-        {"role": "assistant", "content": "환자의 상태를 말씀해주세요. 어떤 증상이 있나요?"}
-    ]
-    print("에이전트:", chat_history[1]["content"])
+    ### 최초 추론 시작###
 
-    confirmed_symptoms = []
-    skipped_symptoms = []
-    question_count = 0
+    # 사용자와 에이전트 간의 대화 기록 (GPT 프롬프트 생성에 사용)
+    chat_history = []
+    print("에이전트: 환자의 상태를 말씀해주세요. 어떤 증상이 있나요?")
+    chat_history.append({"role": "assistant", "content": "환자의 상태를 말씀해주세요. 어떤 증상이 있나요?"})
 
-    first_input = input("사용자: ").strip()
+    confirmed_symptoms = [] # 확정된 증상 키워드 목록
+    skipped_symptoms = []   # 사용자 응답 중 “아니오” 또는 “모르겠어요”라고 한 증상 목록
+    question_count = 0  # 지금까지 생성된 follow-up 질문 수 (질문 상한 제어용)
+
+    first_input = input("사용자: ").strip() # 사용자로부터 받은 첫 증상 입력
     if first_input in ["끝", "종료", "그만"]:
         print("대화를 종료합니다.")
         return
     chat_history.append({"role": "user", "content": first_input})
 
-    full_prompt = build_gpt_prompt_from_chat_history(chat_history[1:], disease_text)
+    # GPT에게 보낼 병명 추론용 프롬프트 전체 문자열
+    full_prompt = build_gpt_prompt_from_chat_history(chat_history, disease_text)
     try:
+        # GPT가 반환한 응답 (openai 클라이언트에서 생성됨)
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -49,6 +52,7 @@ def run_diagnosis_session():
             temperature=0.2,
             timeout=15
         )
+        # GPT 응답 중 텍스트 부분 (예: "- 상태: 진행중\n- 누적 증상: [...]")
         reply = response.choices[0].message.content.strip()
     except openai.OpenAIError as e:
         print("에이전트: 병명 추론 중 GPT 호출에 실패했습니다. 네트워크 상태를 확인해주세요.")
@@ -60,13 +64,9 @@ def run_diagnosis_session():
             return
     
     print("에이전트:", reply)
-#   ==> 분석 결과 출력 포맷:
-#   - 상태: 확정 or 진행중
-#   - 누적 증상: [증상1, 증상2, ...]
-#   - 병명 후보: ...
-#   - 응급도: **병명이 확정된 경우에만 출력할 것!**
     chat_history.append({"role": "assistant", "content": reply})
 
+    # GPT 응답을 파싱한 결과 (status, symptoms, candidates 키 포함)
     parsed = parse_gpt_response(reply)
     
 
@@ -77,6 +77,7 @@ def run_diagnosis_session():
                 if s not in confirmed_symptoms:
                     confirmed_symptoms.append(s)
 
+            # 현재 GPT가 제시한 병명 후보 리스트
             disease_candidates = parsed["candidates"]
 
             if question_count == 15:
@@ -115,9 +116,9 @@ def run_diagnosis_session():
                     return
                 else:
                     print("에이전트: 질문을 이어가겠습니다.")
-                    continue    # 현재 while 루프의 다음 턴으로 이동
            
-            if not has_remaining_symptoms(disease_candidates, confirmed_symptoms, disease_data):
+            if not has_remaining_symptoms(disease_candidates, confirmed_symptoms, disease_data, skipped_symptoms):
+                # 응급도 문자열을 정수 우선순위로 바꾼 매핑 (ex: "긴급" > "응급" > "비응급")
                 urgency_order = {"긴급": 3, "응급": 2, "비응급": 1}
                 max_level = "비응급"
                 for d in disease_candidates:
@@ -153,10 +154,10 @@ def run_diagnosis_session():
 
             while True:
                 followup_prompt = build_followup_question_prompt_from_partial_info(
-                    confirmed_symptoms,
-                    disease_candidates,
-                    disease_data,
-                    skipped_symptoms
+                    confirmed_symptoms, # 확정된 증상 키워드 목록
+                    disease_candidates, # 병명 후보
+                    disease_data,       # 전체 질병-증상 매핑 데이터
+                    skipped_symptoms    # "아니오" 또는 "모르겠어요"라고 대답한 증상 목록
                 )
                 
                 try:
@@ -169,7 +170,10 @@ def run_diagnosis_session():
                         temperature=0.2,
                         timeout=15
                     )
+                    # GPT가 생성한 전체 follow-up 질문 응답(두 줄 구성)
                     next_question_full = followup_response.choices[0].message.content.strip()
+                    # GPT가 생성한 질문이 타겟하는 증상 키워드, 사용자에게 보여줄 follow-up 질문 문장
+                    print("-----------------------------\n" + next_question_full+"\n------------------------------\n")
                     symptom_keyword, next_question = extract_question_and_symptom(next_question_full) 
                                        
                 except openai.OpenAIError as e:
@@ -180,19 +184,15 @@ def run_diagnosis_session():
                     else:
                         print("에이전트: 진단을 종료합니다.")
                         return
-                
-                previous_questions = [
-                    entry["content"] for entry in chat_history
-                    if entry["role"] == "assistant" and entry["content"].startswith("에이전트(추가 질문):") is False
-                    ]
-                
-                if next_question in previous_questions:
+
+                if symptom_keyword in confirmed_symptoms or symptom_keyword in skipped_symptoms:
                     retry_count += 1
                     print("에이전트: 동일한 질문이 반복되었습니다. 새로운 질문을 생성합니다...")
                     if retry_count >= MAX_RETRY:
                         failure_message = "에이전트: 새로운 질문 생성에 실패했습니다."
                         print(failure_message)
-                                                
+                                          
+                        # 사용자로부터 받은 follow-up 질문에 대한 응답      
                         final_input = input("사용자 (예: 119 연결 요청 / 아니요: 처음부터 다시 시작): ").strip()
                                                 
                         if final_input in ["예", "그래", "어"]:
@@ -216,6 +216,7 @@ def run_diagnosis_session():
             chat_history.append({"role": "user", "content": followup_input})
 
             answer_type = classify_user_response(next_question, followup_input)
+            # 사용자의 응답을 분류한 결과 ("예", "아니오", "모르겠음")
             if answer_type == "INVALID":
                 followup_input = input("에이전트: 죄송합니다. 조금 더 명확하게 말씀해주실 수 있나요?\n사용자: ").strip()
                 chat_history.append({"role": "assistant", "content": "죄송합니다. 조금 더 명확하게 말씀해주실 수 있나요?"})
