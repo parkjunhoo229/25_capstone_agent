@@ -62,9 +62,9 @@ def build_followup_question_prompt_from_partial_info(
 
     disease_symptom_text = "\n".join(lines)
 
-    print("✅ 이미 물어본 증상 (confirmed + skipped):", already_asked)
-    print("✅ 확인된 증상 (confirmed + skipped):", confirmed_symptoms)
-    print("✅ 아니요, 모르겠음 응답 증상 (confirmed + skipped):", skipped_symptoms)
+    # print("1. 이미 물어본 증상 (confirmed + skipped):", already_asked)
+    # print("2. 확인된 증상 (confirmed):", confirmed_symptoms)
+    # print("3. 아니요, 모르겠음 응답 증상 (skipped):", skipped_symptoms)
 
     return f"""
 너는 응급환자 증상을 기반으로 질병을 감별하고자 하는 AI 응급의료 에이전트다.

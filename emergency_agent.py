@@ -173,7 +173,7 @@ def run_diagnosis_session():
                     # GPT가 생성한 전체 follow-up 질문 응답(두 줄 구성)
                     next_question_full = followup_response.choices[0].message.content.strip()
                     # GPT가 생성한 질문이 타겟하는 증상 키워드, 사용자에게 보여줄 follow-up 질문 문장
-                    print("-----------------------------\n" + next_question_full+"\n------------------------------\n")
+                    # print("----------------------\n" + next_question_full+"\n-----------------------")
                     symptom_keyword, next_question = extract_question_and_symptom(next_question_full) 
                                        
                 except openai.OpenAIError as e:
