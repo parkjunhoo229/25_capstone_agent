@@ -60,6 +60,11 @@ def run_diagnosis_session():
             return
     
     print("에이전트:", reply)
+#   ==> 분석 결과 출력 포맷:
+#   - 상태: 확정 or 진행중
+#   - 누적 증상: [증상1, 증상2, ...]
+#   - 병명 후보: ...
+#   - 응급도: **병명이 확정된 경우에만 출력할 것!**
     chat_history.append({"role": "assistant", "content": reply})
 
     parsed = parse_gpt_response(reply)

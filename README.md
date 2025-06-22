@@ -1,4 +1,3 @@
-
 # 응급처치 AI 에이전트
 
 GPT API를 활용해 사용자의 증상을 기반으로 병명을 추론하고, 긴급도에 따라 응급처치를 안내하거나 119 신고를 권유하는 CLI 기반 대화형 AI 에이전트입니다.
@@ -22,6 +21,7 @@ python -m venv venv
   .\venv\Scripts\Activate.ps1
   ```
 
+>>>>>>> bc76755 (Update: 최신 코드 반영)
 - **Windows CMD**
   ```cmd
   .\venv\Scripts\activate.bat
