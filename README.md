@@ -21,7 +21,6 @@ python -m venv venv
   .\venv\Scripts\Activate.ps1
   ```
 
->>>>>>> bc76755 (Update: 최신 코드 반영)
 - **Windows CMD**
   ```cmd
   .\venv\Scripts\activate.bat
